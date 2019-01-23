@@ -1,0 +1,11 @@
+name: bip38
+version: 0.0.2
+author: Jeremi Gendron <gendronjeremi@gmail.com>
+homepage: https://github.com/jeremigendron
+repository: https://github.com/jeremigendron/bip38
+description: BIP38 implementation in Dart.
+
+dependencies:
+  bs58check: ^1.0.1
+  pointycastle: ^1.0.0
+  xor: ^0.2.2
