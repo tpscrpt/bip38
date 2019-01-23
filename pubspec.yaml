@@ -3,7 +3,10 @@ version: 0.0.2
 author: Jeremi Gendron <gendronjeremi@gmail.com>
 homepage: https://github.com/jeremigendron
 repository: https://github.com/jeremigendron/bip38
-description: BIP38 implementation in Dart.
+description: [WIP/Help]: BIP38 implementation in Dart.
+
+environment:
+  sdk: ">=2.1.0-1 <3.0.0"
 
 dependencies:
   bs58check: ^1.0.1
