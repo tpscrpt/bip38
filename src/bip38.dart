@@ -26,12 +26,12 @@ class PrivateKey {
   });
 }
 
-const Map<String, int> SCRYPT_PARAMS = {
-  "N": 16384, // specified by BIP38
-  "r": 8,
-  "p": 8,
-  "desiredKeyLength": 64
-};
+class ScryptParams {
+  int N = 16384;
+  int r = 8;
+  int p = 8;
+  int desiredKeyLength = 64;
+}
 
 final NULL = Uint8List(0);
 
@@ -49,8 +49,8 @@ String getAddress (BigInt d, bool compressed) {
   var  Q = (curve.ECCurve_secp256k1().G * d).getEncoded(compressed);
   var hash = hash160(Q);
   final Uint8List payload = Uint8List(21);
-  payload.insert(0, 0x00); //(0x00, 0) // XXX TODO FIXME bitcoin only??? damn you BIP38
-  payload.insertAll(1, hash);
+  payload.setAll(0, [0x00]);
+  payload.setAll(1, hash);
 
   return bs58check.encode(payload);
 }
@@ -58,7 +58,7 @@ String getAddress (BigInt d, bool compressed) {
 Uint8List encryptRaw (Uint8List buffer, bool compressed, String passphrase, scryptParams) {
   if (buffer.length != 32) throw ArgumentError('Invalid private key length');
 
-  scryptParams?? SCRYPT_PARAMS;
+  scryptParams?? ScryptParams();
 
   BigInt d = decodeBigInt(buffer);  // BigInt.parse(buffer.toString());
   String address = getAddress(d, compressed);
@@ -105,7 +105,7 @@ PrivateKey decryptRaw (Uint8List buffer, String passphrase, scryptParams) {
   // 39 bytes: 2 bytes prefix, 37 bytes payload
   if (buffer.length != 39) throw ArgumentError('Invalid BIP38 data length');
   if (buffer.elementAt(0) != 0x01) throw ArgumentError('Invalid BIP38 prefix');
-  scryptParams?? SCRYPT_PARAMS;
+  scryptParams = scryptParams?? ScryptParams();
 
   // check if BIP38 EC multiply
   int type = buffer.elementAt(1);
@@ -130,9 +130,9 @@ PrivateKey decryptRaw (Uint8List buffer, String passphrase, scryptParams) {
   Scrypt scryptBuf = Scrypt();
   scryptBuf.init(scryptParameters);
 
-  Uint8List derivedKey;
+  Uint8List derivedKey = Uint8List(64);
   scryptBuf.deriveKey(secret, 0, derivedKey, 0);
-  Uint8List derivedHalf1 = secret.sublist(0, 32);
+  Uint8List derivedHalf1 = derivedKey.sublist(0, 32);
   Uint8List derivedHalf2 = derivedKey.sublist(32, 64);
 
   Uint8List privKeyBuf = buffer.sublist(7, 39);
@@ -148,6 +148,8 @@ PrivateKey decryptRaw (Uint8List buffer, String passphrase, scryptParams) {
 
 
   if (!ListEquality().equals(salt, checksum)) {
+    print(salt);
+    print(checksum);
     throw StateError("Checksum didn't match");
   }
 
@@ -166,7 +168,11 @@ PrivateKey decrypt (String string, String passphrase, scryptParams) {
 PrivateKey decryptECMult (Uint8List buffer, String passphrase, scryptParams) {
   Uint8List secret = utf8.encode(passphrase);
 
-  buffer.removeAt(1);
+  List<int> tmp = List()
+    ..add(buffer.elementAt(0))
+    ..addAll(buffer.sublist(1, buffer.length));
+
+  buffer = Uint8List.fromList(tmp);
   int flagByte = buffer.elementAt(1);
   bool compressed = (flagByte & 0x20) != 0;
   bool hasLotSeq = (flagByte & 0x04) != 0;
@@ -222,8 +228,8 @@ PrivateKey decryptECMult (Uint8List buffer, String passphrase, scryptParams) {
   decipher.init(false, KeyParameter(derivedHalf2));
   Uint8List decryptedPart2 = decipher.process(encryptedPart2);
 
-  Uint8List tmp = xor(decryptedPart2, derivedHalf1.sublist(16, 32));
-  Uint8List seedBPart2 = tmp.sublist(8, 16);
+  Uint8List temp = xor(decryptedPart2, derivedHalf1.sublist(16, 32));
+  Uint8List seedBPart2 = temp.sublist(8, 16);
 
   AESFastEngine decipher2 = AESFastEngine();
   decipher2.init(false, KeyParameter(derivedHalf2));
